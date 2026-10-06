@@ -1,0 +1,5 @@
+data/raw/*.csv
+data/processed/
+.env
+.env.local
+.env.*.local

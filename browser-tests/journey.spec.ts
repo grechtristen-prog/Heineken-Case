@@ -5,6 +5,7 @@ test('desktop account journey survives reload and resets', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Account priorities' })).toBeVisible()
   await page.screenshot({ path: 'test-results/desktop.png', fullPage: true })
   await page.getByRole('button', { name: 'Prepare action' }).click()
+  await expect(page.getByText(/Local fallback/)).toBeVisible()
   await expect(page.getByRole('button', { name: 'Simulate contact' })).toHaveCount(0)
   await page.getByRole('button', { name: 'Approve script' }).click()
   await page.getByRole('button', { name: 'Simulate contact' }).click()

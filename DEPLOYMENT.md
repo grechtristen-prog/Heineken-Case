@@ -4,6 +4,24 @@ The public jury demo needs a server-side proxy. GitHub holds the code; Vercel
 hosts the public site and its `/api` functions. The GitHub repository can stay
 private. Do not use GitHub Pages for the live n8n version.
 
+## Interim Vercel-only link
+
+Current production URL: https://heineken-retention-copilot.vercel.app
+
+The checked-in production build currently permits the clearly labelled local
+fallback (`VITE_REQUIRE_N8N=false`). This lets the app work on Vercel before
+n8n is configured, but it is **not** the final live-n8n jury demo. The raw
+CSVs are excluded from Vercel CLI uploads by `.vercelignore`.
+
+If GitHub repository permissions prevent importing it into Vercel, deploy this
+local checkout with `vercel link` and `vercel deploy --prod`. This creates a
+public production URL without connecting GitHub; later pushes will not deploy
+automatically. Sign in to Vercel on this machine when the CLI prompts.
+
+When n8n is ready, configure the three server variables below and set the
+Vercel Production build variable `VITE_REQUIRE_N8N=true`. Redeploy and verify
+both workflow calls before using the URL as the final assignment link.
+
 ## 1. Activate n8n workflows
 
 Import both files in `n8n/workflows/` into your n8n instance. In each Webhook

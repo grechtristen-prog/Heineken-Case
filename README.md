@@ -2,6 +2,10 @@
 
 Interactive sales-rep demo for the challenge. The analysis date is 31 August 2018.
 
+Interim public demo: https://heineken-retention-copilot.vercel.app
+This Vercel-only deployment uses a clearly labelled local workflow fallback.
+Live n8n integration is still required before using it as the final jury link.
+
 ## Run locally
 
 Requires Node.js and Python 3.12. On this Windows machine, use `npm.cmd` in
