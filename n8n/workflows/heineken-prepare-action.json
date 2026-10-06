@@ -1,0 +1,84 @@
+{
+  "name": "HEINEKEN — Prepare Action",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "heineken/prepare-action",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "5d0b01d8-49e8-46ae-90c4-e2a85fe7841e",
+      "name": "Prepare Action Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-720, 0],
+      "webhookId": "93a30a7c-150c-45fa-8517-e9c45ad649ef",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_AFTER_IMPORT",
+          "name": "HEINEKEN Webhook Secret"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $json.body ?? $json;\nconst errors = [];\nconst allowed = ['ordering_check', 'category_reintroduction', 'service_recovery'];\nconst isDate = (v) => typeof v === 'string' && /^\\d{4}-\\d{2}-\\d{2}$/.test(v) && !Number.isNaN(Date.parse(v + 'T00:00:00Z'));\nif (typeof input.accountId !== 'string' || !input.accountId.trim()) errors.push({ field: 'accountId', message: 'accountId is required and must be a non-empty string' });\nif (!isDate(input.analysisDate)) errors.push({ field: 'analysisDate', message: 'analysisDate is required in YYYY-MM-DD format' });\nif (!allowed.includes(input.actionType)) errors.push({ field: 'actionType', message: 'Unsupported actionType', allowedValues: allowed });\nif (!input.evidence || typeof input.evidence !== 'object' || Array.isArray(input.evidence)) errors.push({ field: 'evidence', message: 'evidence is required and must be an object; unavailable values may be null or omitted' });\nconst e = input.evidence && typeof input.evidence === 'object' && !Array.isArray(input.evidence) ? input.evidence : {};\nconst numeric = [['daysSinceLastOrder', 0, null], ['typicalOrderingIntervalDays', 0, null], ['spendingDeclinePercent', 0, 100], ['recentReviewScore', 0, 5], ['deliveryLatenessDays', 0, null]];\nfor (const [key, min, max] of numeric) {\n  if (e[key] !== undefined && e[key] !== null && (typeof e[key] !== 'number' || !Number.isFinite(e[key]) || e[key] < min || (max !== null && e[key] > max))) errors.push({ field: `evidence.${key}`, message: `must be null, omitted, or a number${max === null ? ` >= ${min}` : ` from ${min} to ${max}`}` });\n}\nfor (const key of ['droppedCategories', 'riskReasons']) {\n  if (e[key] !== undefined && e[key] !== null && (!Array.isArray(e[key]) || e[key].some((v) => typeof v !== 'string' || !v.trim()))) errors.push({ field: `evidence.${key}`, message: 'must be null, omitted, or an array of non-empty strings' });\n}\nif (e.evidenceConfidence !== undefined && e.evidenceConfidence !== null && !['low', 'medium', 'high', 'unavailable'].includes(e.evidenceConfidence)) errors.push({ field: 'evidence.evidenceConfidence', message: 'must be low, medium, high, unavailable, null, or omitted' });\nif (e.unresolvedServiceIssue !== undefined && e.unresolvedServiceIssue !== null && typeof e.unresolvedServiceIssue !== 'boolean') errors.push({ field: 'evidence.unresolvedServiceIssue', message: 'must be boolean, null, or omitted' });\nif (e.reviewText !== undefined && e.reviewText !== null && typeof e.reviewText !== 'string') errors.push({ field: 'evidence.reviewText', message: 'must be string, null, or omitted' });\nif (errors.length) return [{ json: { ok: false, httpCode: 400, body: { error: { code: 'INVALID_REQUEST', message: 'Prepare Action request failed validation', details: errors } } } }];\nreturn [{ json: { ok: true, request: { ...input, accountId: input.accountId.trim(), evidence: e } } }];"
+      },
+      "id": "f2e39368-6e0b-43ab-b632-b6c12c91fa0e",
+      "name": "Validate Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-480, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "if (!$json.ok) return [{ json: $json }];\nconst request = $json.request;\nconst serviceOverride = request.evidence.unresolvedServiceIssue === true;\nconst selectedActionType = serviceOverride ? 'service_recovery' : request.actionType;\nreturn [{ json: { ...$json, selectedActionType, selectionReason: serviceOverride && request.actionType !== 'service_recovery' ? 'unresolved_service_issue_precedence' : 'requested_action' } }];"
+      },
+      "id": "f20737f9-baa0-4635-aa31-7790d303a170",
+      "name": "Select Action",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-240, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "if (!$json.ok) return [{ json: $json }];\nconst { request, selectedActionType } = $json;\nconst e = request.evidence;\nconst facts = [];\nconst has = (key) => e[key] !== undefined && e[key] !== null;\nif (has('daysSinceLastOrder')) facts.push(`It has been ${e.daysSinceLastOrder} day${e.daysSinceLastOrder === 1 ? '' : 's'} since the last order.`);\nif (has('typicalOrderingIntervalDays')) facts.push(`The typical ordering interval is ${e.typicalOrderingIntervalDays} day${e.typicalOrderingIntervalDays === 1 ? '' : 's'}.`);\nif (has('spendingDeclinePercent')) facts.push(`Recorded spending is down ${e.spendingDeclinePercent}% in the supplied comparison.`);\nif (Array.isArray(e.droppedCategories) && e.droppedCategories.length) facts.push(`Dropped categories: ${e.droppedCategories.join(', ')}.`);\nif (has('recentReviewScore')) facts.push(`The recent review score supplied is ${e.recentReviewScore} out of 5.`);\nif (has('deliveryLatenessDays')) facts.push(`The supplied delivery record shows ${e.deliveryLatenessDays} day${e.deliveryLatenessDays === 1 ? '' : 's'} of lateness.`);\nif (Array.isArray(e.riskReasons) && e.riskReasons.length) facts.push(`Risk reasons supplied: ${e.riskReasons.join('; ')}.`);\nconst confidence = has('evidenceConfidence') ? e.evidenceConfidence : 'unavailable';\nconst cautious = confidence === 'low' || confidence === 'unavailable';\nconst confidenceLine = cautious ? 'Evidence confidence is limited, so verify the situation before proposing any action.' : `Evidence confidence is ${confidence}.`;\nconst templates = {\n  ordering_check: {\n    objective: 'Confirm the account’s current ordering needs and identify whether support is useful.',\n    opening: 'I wanted to check in about your current ordering needs.',\n    question: 'Have your ordering needs or timing changed, and is there anything we should look into?'\n  },\n  category_reintroduction: {\n    objective: 'Explore whether a previously ordered category is still relevant without assuming demand.',\n    opening: 'I wanted to understand whether your current category needs have changed.',\n    question: `Would it be useful to revisit ${Array.isArray(e.droppedCategories) && e.droppedCategories.length ? e.droppedCategories.join(', ') : 'a previously ordered category'}, or is it no longer relevant?`\n  },\n  service_recovery: {\n    objective: 'Investigate the supplied service concern and agree an appropriate next step without making unsupported promises.',\n    opening: 'I’m checking in about a possible service issue shown in the information available to us.',\n    question: 'Is the issue still unresolved, and could you tell me what happened so we can investigate the right next step?'\n  }\n};\nconst t = templates[selectedActionType];\nconst briefingFacts = facts.length ? facts.join(' ') : 'No specific evidence values were available in the request.';\nconst scriptFacts = facts.length && !cautious ? ` The information provided to me shows: ${facts.join(' ')}` : '';\nconst script = `${t.opening}${scriptFacts} ${t.question} I will record what you tell me and make sure the appropriate team reviews any next step.`;\nreturn [{ json: {\n  ok: true,\n  httpCode: 200,\n  body: {\n    accountId: request.accountId,\n    actionType: selectedActionType,\n    briefing: `${briefingFacts} ${confidenceLine}`,\n    objective: t.objective,\n    script,\n    requiresApproval: true,\n    generationMode: 'template'\n  }\n} }];"
+      },
+      "id": "bffea2bf-b315-4657-9461-82e0c479c23a",
+      "name": "Build Briefing and Script",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.body }}",
+        "options": {
+          "responseCode": "={{ $json.httpCode }}"
+        }
+      },
+      "id": "ecaa0aa1-2b06-4934-b91e-0d9df5a18868",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [240, 0]
+    }
+  ],
+  "connections": {
+    "Prepare Action Webhook": { "main": [[{ "node": "Validate Request", "type": "main", "index": 0 }]] },
+    "Validate Request": { "main": [[{ "node": "Select Action", "type": "main", "index": 0 }]] },
+    "Select Action": { "main": [[{ "node": "Build Briefing and Script", "type": "main", "index": 0 }]] },
+    "Build Briefing and Script": { "main": [[{ "node": "Respond to Webhook", "type": "main", "index": 0 }]] }
+  },
+  "pinData": {},
+  "settings": { "executionOrder": "v1" },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2026-10-06T00:00:00.000Z",
+  "versionId": "77b62925-bdad-4ee7-ad20-87b84741086e",
+  "active": false
+}

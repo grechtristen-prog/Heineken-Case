@@ -1,0 +1,18 @@
+{
+  "request": {
+    "eventId": "EVT-010",
+    "accountId": "ACC-1042",
+    "approved": true,
+    "mode": "simulation",
+    "contactDate": "2018-09-03",
+    "outcome": "callback_requested"
+  },
+  "httpStatus": 400,
+  "response": {
+    "error": {
+      "code": "INVALID_REQUEST",
+      "message": "Record Outcome request failed validation",
+      "details": [{ "field": "callbackAt", "message": "callbackAt is required as an ISO date or datetime for callback_requested" }]
+    }
+  }
+}

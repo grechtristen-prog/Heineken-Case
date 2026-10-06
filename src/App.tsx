@@ -5,9 +5,10 @@ import {
   ListFilter, MessageSquareText, RotateCcw, Search, Send, Star, X,
 } from 'lucide-react'
 import rawData from './data/demo.json'
+import { buildOutcomeRequest, prepareAccountAction, submitOutcome } from './api'
 import {
-  currency, displayDate, loadState, OUTCOMES, prepareAction,
-  recordOutcome, resetState, saveState, shortDate, SIMULATION_DATE,
+  applyOutcomeResponse, createEventId, currency, displayDate, loadState, OUTCOMES, prepareAction,
+  resetState, saveState, shortDate, SIMULATION_DATE,
 } from './logic'
 import type { Account, DemoData, DemoState, Outcome, ReasonType } from './types'
 
@@ -67,6 +68,9 @@ function App() {
   const [reschedulingId, setReschedulingId] = useState('')
   const [rescheduleDate, setRescheduleDate] = useState('')
   const [notice, setNotice] = useState('')
+  const [integrationError, setIntegrationError] = useState('')
+  const [preparePending, setPreparePending] = useState(false)
+  const [recordPending, setRecordPending] = useState(false)
   const detailRef = useRef<HTMLElement>(null)
 
   useEffect(() => saveState(state), [state])
@@ -92,6 +96,7 @@ function App() {
     setOutcome('callback')
     setNotes('')
     setDueDate('')
+    setIntegrationError('')
     if (window.innerWidth < 1120) window.setTimeout(() => detailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 30)
   }
 
@@ -108,15 +113,53 @@ function App() {
     setNotice('Demo activity reset')
   }
 
-  function handleRecord() {
+  async function handlePrepare() {
+    if (preparePending) return
+    setPreparePending(true)
+    setIntegrationError('')
+    try {
+      const result = await prepareAccountAction(account, data.analysisDate)
+      const local = prepareAction(account)
+      setState(previous => ({
+        ...previous,
+        workflows: { ...previous.workflows, [account.accountId]: {
+          ...local,
+          briefing: result.data.briefing,
+          objective: result.data.objective,
+          script: result.data.script,
+          requiresApproval: result.data.requiresApproval,
+          generationMode: result.data.generationMode,
+          integrationSource: result.source,
+          fallbackReason: result.fallbackReason,
+        } },
+      }))
+      setNotice(result.source === 'n8n' ? 'Draft prepared by n8n' : 'Draft prepared with local fallback')
+    } catch (error) {
+      setIntegrationError(error instanceof Error ? error.message : 'Unable to prepare this action.')
+    } finally {
+      setPreparePending(false)
+    }
+  }
+
+  async function handleRecord() {
+    if (recordPending || !workflow || workflow.status !== 'contacted') return
     if (outcome === 'callback' && !dueDate) {
       setNotice('Choose the requested callback date')
       return
     }
-    const next = recordOutcome(state, account.accountId, outcome, notes.trim(), dueDate || undefined)
-    if (next === state) return
-    setState(next)
-    setNotice('Outcome recorded and follow-up updated')
+    setRecordPending(true)
+    setIntegrationError('')
+    try {
+      const eventId = workflow.eventId || createEventId(state, account.accountId)
+      const request = buildOutcomeRequest(account.accountId, eventId, outcome, notes.trim(), dueDate || undefined)
+      const result = await submitOutcome(request)
+      setState(previous => applyOutcomeResponse(previous, account.accountId, outcome, notes.trim(), result.data, result.source, result.fallbackReason))
+      setNotice(result.source === 'n8n' ? 'Outcome recorded through n8n' : 'Outcome recorded with local fallback')
+    } catch (error) {
+      setIntegrationError(error instanceof Error ? error.message : 'Unable to record this outcome.')
+    } finally {
+      setRecordPending(false)
+    }
   }
 
   return <div className="app-shell">
@@ -181,14 +224,17 @@ function App() {
             <div className="detail-section recent-orders"><div className="detail-section-head"><h3>Recent orders</h3><span>Latest 8</span></div>{account.recentOrders.map((order, index) => <div className="order-row" key={`${order.date}-${index}`}><span>{displayDate(order.date)}</span><span>{order.categories.slice(0, 2).join(', ') || 'No line data'}</span><strong>{currency(order.revenue)}</strong></div>)}</div>
 
             <div className="action-section"><div className="action-heading"><div><span className="eyebrow">ACT</span><h3>Next best conversation</h3></div><MessageSquareText size={20} /></div>
-              {!workflow ? <><p className="action-intro">Prepare a conversation based on this account’s observed signals.</p><button className="primary-button" onClick={() => { setState(previous => ({ ...previous, workflows: { ...previous.workflows, [account.accountId]: prepareAction(account) } })); setNotice('Draft ready for review') }}>Prepare action <ArrowRight size={17} /></button></> : <>
+              {integrationError && <div className="integration-error" role="alert"><CircleAlert size={17} /><span>{integrationError}</span></div>}
+              {!workflow ? <><p className="action-intro">Prepare a conversation based on this account’s observed signals.</p><button className="primary-button" disabled={preparePending} onClick={handlePrepare}>{preparePending ? 'Preparing…' : 'Prepare action'} {!preparePending && <ArrowRight size={17} />}</button></> : <>
                 <div className="workflow-steps"><span className="done">Draft</span><span className={workflow.status === 'approved' || workflow.status === 'contacted' || workflow.status === 'recorded' ? 'done' : ''}>Approve</span><span className={workflow.status === 'contacted' || workflow.status === 'recorded' ? 'done' : ''}>Contact</span><span className={workflow.status === 'recorded' ? 'done' : ''}>Outcome</span></div>
+                <div className={`integration-source ${workflow.integrationSource}`} title={workflow.fallbackReason || ''}>{workflow.integrationSource === 'n8n' ? 'n8n workflow' : 'Local fallback'} <span>· {workflow.generationMode}</span></div>
+                <div className="briefing"><span>BRIEFING</span><p>{workflow.briefing}</p></div>
                 <div className="objective"><span>OBJECTIVE</span><strong>{workflow.objective}</strong></div>
                 <label className="script-label" htmlFor="script">Call script</label><textarea id="script" value={workflow.script} disabled={workflow.status === 'contacted' || workflow.status === 'recorded'} onChange={event => updateWorkflow({ script: event.target.value, status: 'draft' })} rows={5} />
                 {workflow.status === 'draft' && <button className="primary-button" disabled={!workflow.script.trim()} onClick={() => { updateWorkflow({ status: 'approved' }); setNotice('Script approved') }}><Check size={17} /> Approve script</button>}
-                {workflow.status === 'approved' && <button className="primary-button" onClick={() => { updateWorkflow({ status: 'contacted' }); setNotice('Contact simulated. Select a response.') }}><Send size={17} /> Simulate contact</button>}
-                {workflow.status === 'contacted' && <div className="outcome-form"><span className="form-overline">SIMULATED RESPONSE</span><div className="outcome-grid">{OUTCOMES.map(option => <button className={outcome === option.id ? 'chosen' : ''} key={option.id} onClick={() => { setOutcome(option.id); setDueDate('') }}>{option.label}</button>)}</div><label className="field-label">Notes <textarea value={notes} onChange={event => setNotes(event.target.value)} rows={2} placeholder="Optional context for the next step" /></label>{outcome === 'callback' && <label className="field-label">Requested callback date <input type="date" min={SIMULATION_DATE} value={dueDate} onChange={event => setDueDate(event.target.value)} /></label>}<button className="primary-button" onClick={handleRecord}>Record outcome <ArrowRight size={17} /></button></div>}
-                {workflow.status === 'recorded' && <><div className="recorded"><CheckCircle2 size={19} /><div><strong>Outcome recorded</strong><span>{OUTCOMES.find(item => item.id === workflow.outcome)?.label}. Follow-up appears in the queue.</span></div><button onClick={() => setView('followups')}>View tasks <ArrowRight size={14} /></button></div><button className="new-action-button" onClick={() => { updateWorkflow(prepareAction(account)); setOutcome('callback'); setNotes(''); setDueDate('') }}>Prepare another action</button></>}
+                {workflow.status === 'approved' && <button className="primary-button" onClick={() => { updateWorkflow({ status: 'contacted', eventId: createEventId(state, account.accountId) }); setNotice('Contact simulated. Select a response.') }}><Send size={17} /> Simulate contact</button>}
+                {workflow.status === 'contacted' && <div className="outcome-form"><span className="form-overline">SIMULATED RESPONSE</span><div className="outcome-grid">{OUTCOMES.map(option => <button disabled={recordPending} className={outcome === option.id ? 'chosen' : ''} key={option.id} onClick={() => { setOutcome(option.id); setDueDate('') }}>{option.label}</button>)}</div><label className="field-label">Notes <textarea disabled={recordPending} value={notes} onChange={event => setNotes(event.target.value)} rows={2} placeholder="Optional context for the next step" /></label>{outcome === 'callback' && <label className="field-label">Requested callback date <input disabled={recordPending} type="date" min={SIMULATION_DATE} value={dueDate} onChange={event => setDueDate(event.target.value)} /></label>}<button className="primary-button" disabled={recordPending} onClick={handleRecord}>{recordPending ? 'Recording…' : 'Record outcome'} {!recordPending && <ArrowRight size={17} />}</button></div>}
+                {workflow.status === 'recorded' && <><div className="recorded"><CheckCircle2 size={19} /><div><strong>Outcome recorded</strong><span>{OUTCOMES.find(item => item.id === workflow.outcome)?.label}. Follow-up appears in the queue.</span></div><button onClick={() => setView('followups')}>View tasks <ArrowRight size={14} /></button></div><button className="new-action-button" onClick={() => { setState(previous => { const workflows = { ...previous.workflows }; delete workflows[account.accountId]; return { ...previous, workflows } }); setOutcome('callback'); setNotes(''); setDueDate(''); setIntegrationError('') }}>Prepare another action</button></>}
               </>}
             </div>
           </section>

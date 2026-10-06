@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/heineken/record-outcome.schema.json",
+  "title": "HEINEKEN Record Outcome API",
+  "type": "object",
+  "required": ["eventId", "accountId", "approved", "mode", "contactDate", "outcome"],
+  "additionalProperties": false,
+  "properties": {
+    "eventId": { "type": "string", "minLength": 1 },
+    "accountId": { "type": "string", "minLength": 1 },
+    "approved": { "const": true },
+    "mode": { "const": "simulation" },
+    "contactDate": { "type": "string", "format": "date" },
+    "outcome": {
+      "enum": ["callback_requested", "delivery_unresolved", "category_interested", "demand_reduced", "no_response", "order_received"]
+    },
+    "callbackAt": {
+      "type": "string",
+      "description": "ISO 8601 calendar date or timestamp.",
+      "anyOf": [
+        { "format": "date" },
+        { "format": "date-time" }
+      ]
+    },
+    "representativeNotes": { "type": ["string", "null"] },
+    "monitoring": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["date"],
+          "additionalProperties": false,
+          "properties": { "date": { "type": "string", "format": "date" } }
+        },
+        {
+          "type": "object",
+          "required": ["intervalDays"],
+          "additionalProperties": false,
+          "properties": { "intervalDays": { "type": "integer", "minimum": 1 } }
+        }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "outcome": { "const": "callback_requested" } }, "required": ["outcome"] },
+      "then": { "required": ["callbackAt"] }
+    },
+    {
+      "if": { "properties": { "outcome": { "const": "order_received" } }, "required": ["outcome"] },
+      "then": { "required": ["monitoring"] }
+    }
+  ],
+  "$defs": {
+    "task": {
+      "type": "object",
+      "required": ["taskId", "accountId", "type", "purpose", "dueAt", "status", "sourceEventId", "notes", "instruction"],
+      "properties": {
+        "taskId": { "type": "string" },
+        "accountId": { "type": "string" },
+        "type": { "type": "string" },
+        "purpose": { "type": "string" },
+        "dueAt": { "type": "string" },
+        "status": { "const": "open" },
+        "sourceEventId": { "type": "string" },
+        "notes": { "type": ["string", "null"] },
+        "instruction": { "type": "string" }
+      }
+    },
+    "successResponse": {
+      "type": "object",
+      "required": ["eventId", "accountId", "outcome", "actionStatus", "calendarConvention", "taskInstructions"],
+      "properties": {
+        "eventId": { "type": "string" },
+        "accountId": { "type": "string" },
+        "outcome": { "type": "string" },
+        "actionStatus": { "type": "string" },
+        "calendarConvention": { "const": "calendar_days_utc" },
+        "taskInstructions": {
+          "type": "object",
+          "required": ["upsert", "cancel"],
+          "properties": {
+            "upsert": { "type": "array", "items": { "$ref": "#/$defs/task" } },
+            "cancel": { "type": "array", "items": { "type": "object" } }
+          }
+        }
+      }
+    },
+    "errorResponse": {
+      "type": "object",
+      "required": ["error"],
+      "properties": {
+        "error": {
+          "type": "object",
+          "required": ["code", "message", "details"],
+          "properties": {
+            "code": { "enum": ["INVALID_REQUEST", "APPROVAL_REQUIRED"] },
+            "message": { "type": "string" },
+            "details": { "type": "array", "items": { "type": "object" } }
+          }
+        }
+      }
+    }
+  }
+}

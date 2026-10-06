@@ -1,0 +1,35 @@
+{
+  "calendarConvention": "All interval calculations use calendar days in UTC from contactDate.",
+  "cases": [
+    {
+      "outcome": "callback_requested",
+      "request": { "eventId": "EVT-001", "accountId": "ACC-1042", "approved": true, "mode": "simulation", "contactDate": "2018-09-03", "outcome": "callback_requested", "callbackAt": "2018-09-05T14:30:00Z" },
+      "expected": { "httpStatus": 200, "actionStatus": "callback_scheduled", "taskType": "callback", "dueAt": "2018-09-05T14:30:00Z" }
+    },
+    {
+      "outcome": "delivery_unresolved",
+      "request": { "eventId": "EVT-002", "accountId": "ACC-1042", "approved": true, "mode": "simulation", "contactDate": "2018-09-03", "outcome": "delivery_unresolved" },
+      "expected": { "httpStatus": 200, "actionStatus": "service_escalation_required", "taskType": "service_escalation", "dueAt": "2018-09-03" }
+    },
+    {
+      "outcome": "category_interested",
+      "request": { "eventId": "EVT-003", "accountId": "ACC-1042", "approved": true, "mode": "simulation", "contactDate": "2018-09-03", "outcome": "category_interested" },
+      "expected": { "httpStatus": 200, "actionStatus": "proposal_preparation_required", "taskType": "category_proposal", "dueAt": "2018-09-05" }
+    },
+    {
+      "outcome": "demand_reduced",
+      "request": { "eventId": "EVT-004", "accountId": "ACC-1042", "approved": true, "mode": "simulation", "contactDate": "2018-09-03", "outcome": "demand_reduced" },
+      "expected": { "httpStatus": 200, "actionStatus": "account_review_scheduled", "taskType": "account_review", "dueAt": "2018-10-03" }
+    },
+    {
+      "outcome": "no_response",
+      "request": { "eventId": "EVT-005", "accountId": "ACC-1042", "approved": true, "mode": "simulation", "contactDate": "2018-09-03", "outcome": "no_response" },
+      "expected": { "httpStatus": 200, "actionStatus": "follow_up_scheduled", "taskType": "follow_up_attempt", "dueAt": "2018-09-06" }
+    },
+    {
+      "outcome": "order_received",
+      "request": { "eventId": "EVT-006", "accountId": "ACC-1042", "approved": true, "mode": "simulation", "contactDate": "2018-09-03", "outcome": "order_received", "monitoring": { "intervalDays": 14 } },
+      "expected": { "httpStatus": 200, "actionStatus": "monitoring_scheduled", "taskType": "recovery_monitoring", "dueAt": "2018-09-17", "cancelsPurpose": "retention_contact_reminder", "preservesPurpose": "service_issue_resolution" }
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "request": {
+    "accountId": "ACC-1042",
+    "analysisDate": "2018-08-31",
+    "actionType": "automatic_discount",
+    "evidence": {}
+  },
+  "httpStatus": 400,
+  "response": {
+    "error": {
+      "code": "INVALID_REQUEST",
+      "message": "Prepare Action request failed validation",
+      "details": [
+        {
+          "field": "actionType",
+          "message": "Unsupported actionType",
+          "allowedValues": ["ordering_check", "category_reintroduction", "service_recovery"]
+        }
+      ]
+    }
+  }
+}

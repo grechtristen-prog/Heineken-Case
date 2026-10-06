@@ -1,0 +1,21 @@
+{
+  "request": {
+    "accountId": "ACC-2001",
+    "analysisDate": "2018-08-31",
+    "actionType": "ordering_check",
+    "evidence": {
+      "daysSinceLastOrder": null,
+      "evidenceConfidence": "unavailable"
+    }
+  },
+  "httpStatus": 200,
+  "response": {
+    "accountId": "ACC-2001",
+    "actionType": "ordering_check",
+    "briefing": "No specific evidence values were available in the request. Evidence confidence is limited, so verify the situation before proposing any action.",
+    "objective": "Confirm the account’s current ordering needs and identify whether support is useful.",
+    "script": "I wanted to check in about your current ordering needs. Have your ordering needs or timing changed, and is there anything we should look into? I will record what you tell me and make sure the appropriate team reviews any next step.",
+    "requiresApproval": true,
+    "generationMode": "template"
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "request": {
+    "eventId": "EVT-011",
+    "accountId": "ACC-1042",
+    "approved": true,
+    "mode": "simulation",
+    "contactDate": "2018-09-03",
+    "outcome": "discount_sent"
+  },
+  "httpStatus": 400,
+  "response": {
+    "error": {
+      "code": "INVALID_REQUEST",
+      "message": "Record Outcome request failed validation",
+      "details": [
+        {
+          "field": "outcome",
+          "message": "Unsupported outcome",
+          "allowedValues": ["callback_requested", "delivery_unresolved", "category_interested", "demand_reduced", "no_response", "order_received"]
+        }
+      ]
+    }
+  }
+}

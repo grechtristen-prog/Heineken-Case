@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/heineken/prepare-action.schema.json",
+  "title": "HEINEKEN Prepare Action API",
+  "type": "object",
+  "required": ["accountId", "analysisDate", "actionType", "evidence"],
+  "additionalProperties": false,
+  "properties": {
+    "accountId": { "type": "string", "minLength": 1 },
+    "analysisDate": { "type": "string", "format": "date" },
+    "actionType": {
+      "enum": ["ordering_check", "category_reintroduction", "service_recovery"]
+    },
+    "evidence": {
+      "$ref": "#/$defs/evidence"
+    }
+  },
+  "$defs": {
+    "nullableNonNegativeNumber": {
+      "type": ["number", "null"],
+      "minimum": 0
+    },
+    "nullableStringArray": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      ]
+    },
+    "evidence": {
+      "type": "object",
+      "description": "Every evidence value may be omitted or explicitly null when unavailable. Missing values are never interpreted as zero.",
+      "additionalProperties": false,
+      "properties": {
+        "daysSinceLastOrder": { "$ref": "#/$defs/nullableNonNegativeNumber" },
+        "typicalOrderingIntervalDays": { "$ref": "#/$defs/nullableNonNegativeNumber" },
+        "spendingDeclinePercent": { "type": ["number", "null"], "minimum": 0, "maximum": 100 },
+        "droppedCategories": { "$ref": "#/$defs/nullableStringArray" },
+        "recentReviewScore": { "type": ["number", "null"], "minimum": 0, "maximum": 5 },
+        "deliveryLatenessDays": { "$ref": "#/$defs/nullableNonNegativeNumber" },
+        "riskReasons": { "$ref": "#/$defs/nullableStringArray" },
+        "riskScore": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Relative attention score supplied by the UX; it is not a probability."
+        },
+        "evidenceConfidence": { "type": ["string", "null"], "enum": ["low", "medium", "high", "unavailable", null] },
+        "unresolvedServiceIssue": { "type": ["boolean", "null"] },
+        "reviewText": {
+          "type": ["string", "null"],
+          "description": "Untrusted customer-supplied text. The deterministic workflow validates but does not interpolate it into the script."
+        }
+      }
+    },
+    "successResponse": {
+      "type": "object",
+      "required": ["accountId", "actionType", "briefing", "objective", "script", "requiresApproval", "generationMode"],
+      "additionalProperties": false,
+      "properties": {
+        "accountId": { "type": "string" },
+        "actionType": { "enum": ["ordering_check", "category_reintroduction", "service_recovery"] },
+        "briefing": { "type": "string" },
+        "objective": { "type": "string" },
+        "script": { "type": "string" },
+        "requiresApproval": { "const": true },
+        "generationMode": { "enum": ["template", "ai"] }
+      }
+    },
+    "errorResponse": {
+      "type": "object",
+      "required": ["error"],
+      "properties": {
+        "error": {
+          "type": "object",
+          "required": ["code", "message", "details"],
+          "properties": {
+            "code": { "type": "string" },
+            "message": { "type": "string" },
+            "details": { "type": "array", "items": { "type": "object" } }
+          }
+        }
+      }
+    }
+  }
+}

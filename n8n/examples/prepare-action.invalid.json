@@ -1,0 +1,19 @@
+{
+  "request": {
+    "accountId": "",
+    "analysisDate": "31-08-2018",
+    "actionType": "ordering_check"
+  },
+  "httpStatus": 400,
+  "response": {
+    "error": {
+      "code": "INVALID_REQUEST",
+      "message": "Prepare Action request failed validation",
+      "details": [
+        { "field": "accountId", "message": "accountId is required and must be a non-empty string" },
+        { "field": "analysisDate", "message": "analysisDate is required in YYYY-MM-DD format" },
+        { "field": "evidence", "message": "evidence is required and must be an object; unavailable values may be null or omitted" }
+      ]
+    }
+  }
+}

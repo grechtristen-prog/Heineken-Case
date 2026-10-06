@@ -8,3 +8,6 @@ __pycache__/
 /test-results/
 /screenshots/
 *.tsbuildinfo
+.env
+.env.*
+!.env.example

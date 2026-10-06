@@ -44,6 +44,8 @@ category labels. The raw CSVs are never bundled into the website.
 ```powershell
 py -3.12 -m unittest discover -s tests -v
 npm.cmd test
+npm.cmd run test:server
+npm.cmd run test:n8n
 npm.cmd run build
 npm.cmd run test:browser
 ```
@@ -51,3 +53,40 @@ npm.cmd run test:browser
 The browser test uses locally installed Chrome. The retrospective check in
 the app compares ordering after 31 May 2018 for an established cohort. It is
 not a measured retention impact or a calibrated churn probability.
+
+## n8n integration
+
+The browser calls same-origin server routes; webhook URLs and the Header Auth
+secret never enter frontend code:
+
+- `POST /api/prepare-action` → `N8N_ACTION_WEBHOOK_URL`
+- `POST /api/record-outcome` → `N8N_OUTCOME_WEBHOOK_URL`
+
+Copy `.env.example` to `.env` and set the two production webhook URLs plus the
+secret configured in each n8n Webhook node as the `x-webhook-secret` Header
+Auth credential. `.env` is ignored by Git. Do not use `VITE_*` variables for
+these values.
+
+During development, Vite serves the two API routes through a server-only
+plugin. For a production-style local run:
+
+```powershell
+npm.cmd run build
+npm.cmd start
+```
+
+If n8n is unconfigured, unavailable, times out, or returns an invalid response,
+the browser uses the schema-compatible deterministic local fallback and labels
+the result **Local fallback**. It never presents fallback work as a live n8n
+execution. HTTP 400 validation errors are shown instead of silently falling
+back.
+
+The app keeps simulated tasks in browser storage. Returned tasks are upserted
+by deterministic `taskId`, duplicate open tasks for the same account and
+purpose are suppressed, and only explicit valid cancellation selectors are
+applied. An order closes an open retention-contact reminder but does not close
+an unrelated service task.
+
+Import and credential instructions, contracts, fixtures, and workflow-specific
+verification are in `n8n/README.md`. The workflow exports are inactive and no
+live n8n activation or public-site deployment is performed by this repository.

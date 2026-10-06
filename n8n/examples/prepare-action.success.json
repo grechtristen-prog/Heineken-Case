@@ -1,0 +1,28 @@
+{
+  "request": {
+    "accountId": "ACC-1042",
+    "analysisDate": "2018-08-31",
+    "actionType": "category_reintroduction",
+    "evidence": {
+      "daysSinceLastOrder": 42,
+      "typicalOrderingIntervalDays": 21,
+      "spendingDeclinePercent": 37.5,
+      "droppedCategories": ["Cider"],
+      "recentReviewScore": 4,
+      "deliveryLatenessDays": null,
+      "riskReasons": ["Ordering interval exceeded", "Category no longer present"],
+      "evidenceConfidence": "high",
+      "unresolvedServiceIssue": false
+    }
+  },
+  "httpStatus": 200,
+  "response": {
+    "accountId": "ACC-1042",
+    "actionType": "category_reintroduction",
+    "briefing": "It has been 42 days since the last order. The typical ordering interval is 21 days. Recorded spending is down 37.5% in the supplied comparison. Dropped categories: Cider. The recent review score supplied is 4 out of 5. Risk reasons supplied: Ordering interval exceeded; Category no longer present. Evidence confidence is high.",
+    "objective": "Explore whether a previously ordered category is still relevant without assuming demand.",
+    "script": "I wanted to understand whether your current category needs have changed. The information provided to me shows: It has been 42 days since the last order. The typical ordering interval is 21 days. Recorded spending is down 37.5% in the supplied comparison. Dropped categories: Cider. The recent review score supplied is 4 out of 5. Risk reasons supplied: Ordering interval exceeded; Category no longer present. Would it be useful to revisit Cider, or is it no longer relevant? I will record what you tell me and make sure the appropriate team reviews any next step.",
+    "requiresApproval": true,
+    "generationMode": "template"
+  }
+}

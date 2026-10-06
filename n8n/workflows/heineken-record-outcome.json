@@ -1,0 +1,84 @@
+{
+  "name": "HEINEKEN — Record Outcome",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "heineken/record-outcome",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "d1017202-bb36-4ac8-b67a-8f907ad071c0",
+      "name": "Record Outcome Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-720, 0],
+      "webhookId": "1fbc3214-f3e8-4a45-811e-f7d2d7b5150a",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_AFTER_IMPORT",
+          "name": "HEINEKEN Webhook Secret"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $json.body ?? $json;\nconst errors = [];\nconst outcomes = ['callback_requested', 'delivery_unresolved', 'category_interested', 'demand_reduced', 'no_response', 'order_received'];\nconst isDate = (v) => typeof v === 'string' && /^\\d{4}-\\d{2}-\\d{2}$/.test(v) && !Number.isNaN(Date.parse(v + 'T00:00:00Z'));\nconst isDateOrDateTime = (v) => typeof v === 'string' && !Number.isNaN(Date.parse(v));\nfor (const key of ['eventId', 'accountId']) if (typeof input[key] !== 'string' || !input[key].trim()) errors.push({ field: key, message: `${key} is required and must be a non-empty string` });\nif (input.approved !== true) errors.push({ field: 'approved', message: 'approved must be exactly true' });\nif (input.mode !== 'simulation') errors.push({ field: 'mode', message: 'mode must be simulation' });\nif (!isDate(input.contactDate)) errors.push({ field: 'contactDate', message: 'contactDate is required in YYYY-MM-DD format' });\nif (!outcomes.includes(input.outcome)) errors.push({ field: 'outcome', message: 'Unsupported outcome', allowedValues: outcomes });\nif (input.outcome === 'callback_requested' && !isDateOrDateTime(input.callbackAt)) errors.push({ field: 'callbackAt', message: 'callbackAt is required as an ISO date or datetime for callback_requested' });\nif (input.callbackAt !== undefined && input.callbackAt !== null && !isDateOrDateTime(input.callbackAt)) errors.push({ field: 'callbackAt', message: 'callbackAt must be an ISO date or datetime when supplied' });\nif (input.representativeNotes !== undefined && input.representativeNotes !== null && typeof input.representativeNotes !== 'string') errors.push({ field: 'representativeNotes', message: 'representativeNotes must be a string, null, or omitted' });\nif (input.outcome === 'order_received') {\n  const m = input.monitoring;\n  const validDate = m && Object.keys(m).length === 1 && isDate(m.date);\n  const validInterval = m && Object.keys(m).length === 1 && Number.isInteger(m.intervalDays) && m.intervalDays > 0;\n  if (!validDate && !validInterval) errors.push({ field: 'monitoring', message: 'order_received requires monitoring with exactly one of date (YYYY-MM-DD) or intervalDays (positive integer)' });\n}\nif (isDate(input.contactDate) && input.outcome === 'callback_requested' && isDateOrDateTime(input.callbackAt) && Date.parse(input.callbackAt) < Date.parse(input.contactDate + 'T00:00:00Z')) errors.push({ field: 'callbackAt', message: 'callbackAt cannot be before contactDate' });\nif (errors.length) {\n  const approvalOnly = errors.length === 1 && errors[0].field === 'approved';\n  return [{ json: { ok: false, httpCode: approvalOnly ? 403 : 400, body: { error: { code: approvalOnly ? 'APPROVAL_REQUIRED' : 'INVALID_REQUEST', message: approvalOnly ? 'The outcome was not approved' : 'Record Outcome request failed validation', details: errors } } } }];\n}\nreturn [{ json: { ok: true, request: { ...input, eventId: input.eventId.trim(), accountId: input.accountId.trim() } } }];"
+      },
+      "id": "943b8024-1d1f-435f-bc85-bf434fbde303",
+      "name": "Validate Approval and Outcome",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-480, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "if (!$json.ok) return [{ json: $json }];\nconst request = $json.request;\nconst CONFIG = {\n  calendarConvention: 'calendar_days_utc',\n  timingDays: {\n    delivery_unresolved: 0,\n    category_interested: 2,\n    demand_reduced: 30,\n    no_response: 3\n  }\n};\nconst routes = {\n  callback_requested: { status: 'callback_scheduled', taskType: 'callback', purpose: 'retention_callback' },\n  delivery_unresolved: { status: 'service_escalation_required', taskType: 'service_escalation', purpose: 'service_issue_resolution' },\n  category_interested: { status: 'proposal_preparation_required', taskType: 'category_proposal', purpose: 'category_proposal' },\n  demand_reduced: { status: 'account_review_scheduled', taskType: 'account_review', purpose: 'demand_review' },\n  no_response: { status: 'follow_up_scheduled', taskType: 'follow_up_attempt', purpose: 'retention_contact_reminder' },\n  order_received: { status: 'monitoring_scheduled', taskType: 'recovery_monitoring', purpose: 'retention_monitoring' }\n};\nreturn [{ json: { ...$json, config: CONFIG, route: routes[request.outcome] } }];"
+      },
+      "id": "cc96408e-6630-4c73-a2d8-028948624285",
+      "name": "Route Outcome",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-240, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "if (!$json.ok) return [{ json: $json }];\nconst { request: r, route, config } = $json;\nconst addDays = (date, days) => { const d = new Date(date + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + days); return d.toISOString().slice(0, 10); };\nconst fnv1a = (text) => { let h = 0x811c9dc5; for (let i = 0; i < text.length; i++) { h ^= text.charCodeAt(i); h = Math.imul(h, 0x01000193); } return (h >>> 0).toString(16).padStart(8, '0'); };\nconst taskId = `task_${route.taskType}_${fnv1a(`${r.eventId}|${route.taskType}`)}`;\nlet dueAt;\nif (r.outcome === 'callback_requested') dueAt = r.callbackAt;\nelse if (r.outcome === 'order_received') dueAt = r.monitoring.date ?? addDays(r.contactDate, r.monitoring.intervalDays);\nelse dueAt = addDays(r.contactDate, config.timingDays[r.outcome]);\nconst instructions = {\n  upsert: [{\n    taskId,\n    accountId: r.accountId,\n    type: route.taskType,\n    purpose: route.purpose,\n    dueAt,\n    status: 'open',\n    sourceEventId: r.eventId,\n    notes: r.representativeNotes ?? null\n  }],\n  cancel: []\n};\nconst messages = {\n  callback_requested: 'Contact the account at the requested callback time.',\n  delivery_unresolved: 'Escalate the unresolved delivery issue to the service team for investigation.',\n  category_interested: 'Prepare a category proposal for representative review; do not send automatically.',\n  demand_reduced: 'Review the account later using updated evidence; reduced demand is not necessarily churn.',\n  no_response: 'Make one follow-up contact attempt on the configured date.',\n  order_received: 'Monitor the account on the requested date. This order is not proof of sustained recovery.'\n};\nif (r.outcome === 'order_received') {\n  instructions.cancel.push({\n    accountId: r.accountId,\n    purpose: 'retention_contact_reminder',\n    scope: 'open_tasks_only',\n    excludePurposes: ['service_issue_resolution'],\n    reason: 'order_received'\n  });\n}\ninstructions.upsert[0].instruction = messages[r.outcome];\nreturn [{ json: { ok: true, httpCode: 200, body: {\n  eventId: r.eventId,\n  accountId: r.accountId,\n  outcome: r.outcome,\n  actionStatus: route.status,\n  calendarConvention: config.calendarConvention,\n  taskInstructions: instructions\n} } }];"
+      },
+      "id": "56465849-1ea1-436b-899d-c5eda01d0c69",
+      "name": "Build Task Instructions",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.body }}",
+        "options": {
+          "responseCode": "={{ $json.httpCode }}"
+        }
+      },
+      "id": "6df8a46a-8f27-45fb-939d-5c4b521ea38f",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [240, 0]
+    }
+  ],
+  "connections": {
+    "Record Outcome Webhook": { "main": [[{ "node": "Validate Approval and Outcome", "type": "main", "index": 0 }]] },
+    "Validate Approval and Outcome": { "main": [[{ "node": "Route Outcome", "type": "main", "index": 0 }]] },
+    "Route Outcome": { "main": [[{ "node": "Build Task Instructions", "type": "main", "index": 0 }]] },
+    "Build Task Instructions": { "main": [[{ "node": "Respond to Webhook", "type": "main", "index": 0 }]] }
+  },
+  "pinData": {},
+  "settings": { "executionOrder": "v1" },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2026-10-06T00:00:00.000Z",
+  "versionId": "4c3f7f35-064f-4dda-89b5-946808e74d51",
+  "active": false
+}

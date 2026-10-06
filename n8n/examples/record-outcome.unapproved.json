@@ -1,0 +1,18 @@
+{
+  "request": {
+    "eventId": "EVT-009",
+    "accountId": "ACC-1042",
+    "approved": false,
+    "mode": "simulation",
+    "contactDate": "2018-09-03",
+    "outcome": "no_response"
+  },
+  "httpStatus": 403,
+  "response": {
+    "error": {
+      "code": "APPROVAL_REQUIRED",
+      "message": "The outcome was not approved",
+      "details": [{ "field": "approved", "message": "approved must be exactly true" }]
+    }
+  }
+}
