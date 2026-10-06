@@ -1,6 +1,6 @@
 # HEINEKEN Customer Retention Copilot — n8n layer
 
-This directory contains two isolated, inactive n8n workflow exports. They use supplied account evidence, create deterministic copy or task instructions, and never send messages, call customers, write to Awtoma, or persist customer data.
+This directory contains two isolated, inactive n8n workflow exports. They use supplied account evidence, create deterministic copy or task instructions, and never send messages, call customers, write to an external CRM, or persist customer data.
 
 ## Files
 
