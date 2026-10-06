@@ -1,5 +1,10 @@
 /data/raw/*.csv
 /data/processed/
 /.venv/
-/__pycache__/
+__pycache__/
 /.pytest_cache/
+/node_modules/
+/dist/
+/test-results/
+/screenshots/
+*.tsbuildinfo
