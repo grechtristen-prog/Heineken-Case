@@ -5,7 +5,7 @@ import type { Account, DemoData } from './types'
 
 const data = rawData as DemoData
 
-afterEach(() => vi.unstubAllGlobals())
+afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs() })
 
 describe('n8n contract adapter', () => {
   it('maps real account evidence without converting missing values to zero', () => {
@@ -36,5 +36,11 @@ describe('n8n contract adapter', () => {
     expect(result.source).toBe('local_fallback')
     expect(result.fallbackReason).toBeTruthy()
     expect(result.data.requiresApproval).toBe(true)
+  })
+
+  it('surfaces proxy failure when live n8n is required', async () => {
+    vi.stubEnv('VITE_REQUIRE_N8N', 'true')
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('offline') }))
+    await expect(prepareAccountAction(data.accounts[0], data.analysisDate)).rejects.toThrow('n8n proxy is unavailable')
   })
 })

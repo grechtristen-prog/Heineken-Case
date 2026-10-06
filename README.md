@@ -56,6 +56,10 @@ not a measured retention impact or a calibrated churn probability.
 
 ## n8n integration
 
+For the public jury demo with live n8n, follow [DEPLOYMENT.md](DEPLOYMENT.md).
+The GitHub repository may stay private; Vercel hosts the public app and the
+same-origin API functions. GitHub Pages cannot run the secret-holding proxy.
+
 The browser calls same-origin server routes; webhook URLs and the Header Auth
 secret never enter frontend code:
 
@@ -75,11 +79,10 @@ npm.cmd run build
 npm.cmd start
 ```
 
-If n8n is unconfigured, unavailable, times out, or returns an invalid response,
-the browser uses the schema-compatible deterministic local fallback and labels
-the result **Local fallback**. It never presents fallback work as a live n8n
-execution. HTTP 400 validation errors are shown instead of silently falling
-back.
+In local development, an unconfigured or unavailable n8n instance triggers
+the labelled deterministic fallback. Production builds require live n8n and
+show an integration error if a call fails. HTTP 400 validation errors are
+always shown rather than silently falling back.
 
 The app keeps simulated tasks in browser storage. Returned tasks are upserted
 by deterministic `taskId`, duplicate open tasks for the same account and

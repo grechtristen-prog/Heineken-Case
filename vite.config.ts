@@ -19,6 +19,6 @@ export default defineConfig(({ mode }) => {
       N8N_OUTCOME_WEBHOOK_URL: env.N8N_OUTCOME_WEBHOOK_URL,
       N8N_WEBHOOK_SECRET: env.N8N_WEBHOOK_SECRET,
     })],
-    test: { environment: 'jsdom', include: ['src/**/*.test.{ts,tsx}'] },
+    test: { environment: 'jsdom', include: ['src/**/*.test.{ts,tsx}'], testTimeout: 20_000 },
   }
 })

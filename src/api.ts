@@ -96,7 +96,8 @@ function validOutcomeResponse(value: RecordOutcomeResponse, request: RecordOutco
 }
 
 function shouldUseFallback(error: unknown): boolean {
-  return !(error instanceof IntegrationError && (error.status === 400 || error.status === 403))
+  return import.meta.env.VITE_REQUIRE_N8N !== 'true' &&
+    !(error instanceof IntegrationError && (error.status === 400 || error.status === 403))
 }
 
 export async function prepareAccountAction(account: Account, analysisDate: string): Promise<IntegrationResult<PrepareActionResponse>> {
